@@ -3,7 +3,7 @@ package com.mycompany.qapsolver;
 import java.util.Random;
 
 public class RandomWalkAlgorithm extends Algorithm implements TimeLimitedAlgorithm {
-    private final int fixedIterations; // fallback if time limit is not used
+    private final int fixedIterations;
     private final Random rand;
 
     public RandomWalkAlgorithm(Problem problem, int iterations) {
@@ -14,15 +14,14 @@ public class RandomWalkAlgorithm extends Algorithm implements TimeLimitedAlgorit
 
     @Override
     public void run() {
-        // Fixed iterations version (for backward compatibility)
         RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
         initializer.run();
         currentSolution.copyFrom(initializer.getBestSolution());
+        // Record initial solution.
+        recordInitial();
         bestSolution.copyFrom(currentSolution);
-
         int currentFitness = evaluate(currentSolution);
         int bestFitness = currentFitness;
-
         for (int i = 0; i < fixedIterations; i++) {
             int a = rand.nextInt(problem.getSize());
             int b = rand.nextInt(problem.getSize());
@@ -37,25 +36,23 @@ public class RandomWalkAlgorithm extends Algorithm implements TimeLimitedAlgorit
                     bestFitness = newFitness;
                     bestSolution.copyFrom(currentSolution);
                 }
-                stepsCount++;  // Count accepted swap as a step.
+                stepsCount++;
             } else {
-                currentSolution.swap(a, b); // Revert swap.
+                currentSolution.swap(a, b);
             }
         }
     }
 
     @Override
     public void run(long timeLimitNs) {
-        // Time-limited run for RW.
         RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
         initializer.run();
         currentSolution.copyFrom(initializer.getBestSolution());
+        recordInitial();
         bestSolution.copyFrom(currentSolution);
-
         int currentFitness = evaluate(currentSolution);
         int bestFitness = currentFitness;
         long start = TimeUtil.currentTime();
-
         while (TimeUtil.currentTime() - start < timeLimitNs) {
             int a = rand.nextInt(problem.getSize());
             int b = rand.nextInt(problem.getSize());
@@ -70,9 +67,9 @@ public class RandomWalkAlgorithm extends Algorithm implements TimeLimitedAlgorit
                     bestFitness = newFitness;
                     bestSolution.copyFrom(currentSolution);
                 }
-                stepsCount++;  // Count accepted swap as a step.
+                stepsCount++;
             } else {
-                currentSolution.swap(a, b); // Revert swap.
+                currentSolution.swap(a, b);
             }
         }
     }

@@ -1,14 +1,24 @@
 package com.mycompany.qapsolver;
 
 import java.util.Arrays;
+import java.util.Random;
 
 public class Solution {
     private final int[] assignment;
 
     public Solution(int size) {
         this.assignment = new int[size];
+        // Initialize with the identity permutation.
         for (int i = 0; i < size; i++) {
             assignment[i] = i;
+        }
+        // Shuffle the array to obtain a random permutation.
+        Random rand = new Random();
+        for (int i = size - 1; i > 0; i--) {
+            int j = rand.nextInt(i + 1);
+            int temp = assignment[i];
+            assignment[i] = assignment[j];
+            assignment[j] = temp;
         }
     }
 

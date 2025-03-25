@@ -3,7 +3,7 @@ package com.mycompany.qapsolver;
 import java.util.Arrays;
 import java.util.Random;
 
-public class NearestNeighborAlgorithm extends Algorithm implements TimeLimitedAlgorithm {
+public class NearestNeighborAlgorithm extends Algorithm {
     private final Random rand;
 
     public NearestNeighborAlgorithm(Problem problem) {
@@ -12,52 +12,40 @@ public class NearestNeighborAlgorithm extends Algorithm implements TimeLimitedAl
     }
 
     /**
-     * Default run method. For backward compatibility, we run with a fixed short time (e.g., 100ms).
+     * Runs the nearest neighbor heuristic once.
+     * It first obtains a random starting solution (via RandomSearchAlgorithm),
+     * records that as the initial solution, and then performs the nearest neighbor improvement.
      */
     @Override
     public void run() {
-        // Run for 100 milliseconds as a default if no time limit is provided.
-        run(100_000_000L);
-    }
+        // Use RandomSearchAlgorithm to generate a random starting solution.
+        RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
+        initializer.run();
+        // Copy the random solution as the starting point.
+        currentSolution.copyFrom(initializer.getBestSolution());
+        // Record the initial solution and fitness.
+        recordInitial();
 
-    /**
-     * Runs the nearest neighbor heuristic repeatedly—each time starting from a random starting point—
-     * until the given time limit (in nanoseconds) is exceeded.
-     * Updates the bestSolution if a candidate solution is better.
-     */
-    @Override
-    public void run(long timeLimitNs) {
-        long startTime = TimeUtil.currentTime();
-        int bestFitness = Integer.MAX_VALUE;
-        while (TimeUtil.currentTime() - startTime < timeLimitNs) {
-            Solution candidate = buildNearestNeighborCandidate();
-            int candidateFitness = evaluate(candidate);
-            if (candidateFitness < bestFitness) {
-                bestFitness = candidateFitness;
-                bestSolution.copyFrom(candidate);
-            }
-            stepsCount++; // Count each candidate construction as one step.
-        }
-    }
-
-    /**
-     * Builds a candidate solution using the nearest neighbor heuristic.
-     */
-    private Solution buildNearestNeighborCandidate() {
+        // Now, build the candidate using the nearest neighbor improvement.
         int n = problem.getSize();
-        // Create and initialize a candidate solution.
-        Solution candidate = initializeCandidate(n);
-        int[] sol = candidate.getAssignment();
+        int[] sol = currentSolution.getAssignment();
 
-        // Randomly choose a starting facility and location.
+        // Create new boolean arrays to track which facility and location are already assigned.
         boolean[] assignedFacility = new boolean[n];
         boolean[] assignedLocation = new boolean[n];
-        chooseRandomStart(n, sol, assignedFacility, assignedLocation);
 
-        // Assign the remaining facilities iteratively.
+        // Use the random starting solution: for instance, take the facility at position 0 of currentSolution.
+        // (You may choose a different rule if desired.)
+        int startFacility = 0;
+        int startLocation = sol[startFacility];
+        assignedFacility[startFacility] = true;
+        assignedLocation[startLocation] = true;
+
+        // Apply the nearest neighbor rule to assign all remaining facilities.
         assignRemainingFacilities(n, sol, assignedFacility, assignedLocation);
 
-        return candidate;
+        // Save the improved solution.
+        bestSolution.copyFrom(currentSolution);
     }
 
     /**
@@ -65,30 +53,16 @@ public class NearestNeighborAlgorithm extends Algorithm implements TimeLimitedAl
      */
     private Solution initializeCandidate(int n) {
         Solution candidate = new Solution(n);
-        int[] sol = candidate.getAssignment();
-        Arrays.fill(sol, -1);
+        Arrays.fill(candidate.getAssignment(), -1);
         return candidate;
     }
 
     /**
-     * Chooses a random starting facility and a random starting location,
-     * then marks them as assigned in the provided arrays.
-     */
-    private void chooseRandomStart(int n, int[] sol, boolean[] assignedFacility, boolean[] assignedLocation) {
-        int f0 = rand.nextInt(n);
-        int l0 = rand.nextInt(n);
-        sol[f0] = l0;
-        assignedFacility[f0] = true;
-        assignedLocation[l0] = true;
-    }
-
-    /**
-     * Assigns the remaining facilities to locations iteratively using the nearest neighbor rule.
+     * Assigns the remaining facilities iteratively using the nearest neighbor rule.
      */
     private void assignRemainingFacilities(int n, int[] sol, boolean[] assignedFacility, boolean[] assignedLocation) {
         int[][] flow = problem.getFlowMatrix();
         int[][] distance = problem.getDistanceMatrix();
-
         // For each remaining facility.
         for (int k = 1; k < n; k++) {
             int[] bestPair = findBestAssignment(n, sol, assignedFacility, assignedLocation, flow, distance);
@@ -107,8 +81,7 @@ public class NearestNeighborAlgorithm extends Algorithm implements TimeLimitedAl
     private int[] findBestAssignment(int n, int[] sol, boolean[] assignedFacility, boolean[] assignedLocation,
                                      int[][] flow, int[][] distance) {
         double bestCostIncrease = Double.MAX_VALUE;
-        int bestF = -1;
-        int bestL = -1;
+        int bestF = -1, bestL = -1;
         for (int f = 0; f < n; f++) {
             if (!assignedFacility[f]) {
                 for (int l = 0; l < n; l++) {
@@ -136,8 +109,7 @@ public class NearestNeighborAlgorithm extends Algorithm implements TimeLimitedAl
         for (int f2 = 0; f2 < n; f2++) {
             if (assignedFacility[f2]) {
                 int loc_f2 = sol[f2];
-                costIncrease += flow[f][f2] * distance[l][loc_f2]
-                        + flow[f2][f] * distance[loc_f2][l];
+                costIncrease += flow[f][f2] * distance[l][loc_f2] + flow[f2][f] * distance[loc_f2][l];
                 evaluationsCount++; // Count each evaluation.
             }
         }
