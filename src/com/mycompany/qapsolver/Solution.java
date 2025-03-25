@@ -38,6 +38,16 @@ public class Solution {
         System.arraycopy(other.assignment, 0, this.assignment, 0, assignment.length);
     }
 
+    public double similarityTo(Solution other) {
+        int count = 0;
+        for (int i = 0; i < assignment.length; i++) {
+            if (this.assignment[i] == other.assignment[i]) {
+                count++;
+            }
+        }
+        return (double) count / assignment.length;
+    }
+
     @Override
     public String toString() {
         return Arrays.toString(assignment);
