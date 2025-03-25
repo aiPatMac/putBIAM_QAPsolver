@@ -1,54 +1,30 @@
 package com.mycompany.qapsolver;
 
-public class MultiStartGreedyAlgorithm extends Algorithm {
-    private final int maxIterations;
-    private final int randomStarts;
+import java.util.List;
+import java.util.Collections;
 
-    public MultiStartGreedyAlgorithm(Problem problem, int maxIterations, int randomStarts) {
-        super(problem);
-        this.maxIterations = maxIterations;
-        this.randomStarts = randomStarts;
+public class MultiStartGreedyAlgorithm extends OperatorLocalSearchAlgorithm {
+
+    public MultiStartGreedyAlgorithm(Problem problem, int maxIterations, int randomStarts, NeighborhoodOperator operator) {
+        super(problem, maxIterations, randomStarts, operator);
     }
 
     @Override
-    public void run() {
-        int bestOverallFitness = Integer.MAX_VALUE;
-        Solution bestOverallSolution = new Solution(problem.getSize());
-
-        for (int start = 0; start < randomStarts; start++) {
-            // Initialize with a random solution.
-            RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
-            initializer.run();
-            currentSolution.copyFrom(initializer.getBestSolution());
-            int currentFitness = evaluate(currentSolution);
-
-            // Greedy local search (first-improvement).
-            boolean improved;
-            for (int iter = 0; iter < maxIterations; iter++) {
-                improved = false;
-                for (int i = 0; i < problem.getSize() - 1; i++) {
-                    for (int j = i + 1; j < problem.getSize(); j++) {
-                        currentSolution.swap(i, j);
-                        int newFitness = evaluate(currentSolution);
-                        if (newFitness < currentFitness) {
-                            currentFitness = newFitness;
-                            improved = true;
-                            stepsCount++; // Count each accepted improvement as a step.
-                            break; // Accept first improvement.
-                        } else {
-                            currentSolution.swap(i, j); // Revert swap.
-                        }
-                    }
-                    if (improved) break;
-                }
-                if (!improved) break;
-            }
-
-            if (currentFitness < bestOverallFitness) {
-                bestOverallFitness = currentFitness;
-                bestOverallSolution.copyFrom(currentSolution);
+    protected int localSearch(int currentFitness, int n) {
+        // Greedy first-improvement using the operator.
+        for (int iter = 0; iter < maxIterations; iter++) {
+            // Get one random neighbor.
+            Solution neighbor = operator.getRandomNeighbor(currentSolution);
+            int newFitness = evaluate(neighbor);
+            if (newFitness < currentFitness) {
+                currentFitness = newFitness;
+                currentSolution.copyFrom(neighbor);
+                stepsCount++;
+                // Accept first improvement and then start the next iteration.
+            } else {
+                // No improvement found in this random check; continue trying.
             }
         }
-        bestSolution.copyFrom(bestOverallSolution);
+        return currentFitness;
     }
 }

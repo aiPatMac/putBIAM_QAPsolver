@@ -37,8 +37,9 @@ public class RandomWalkAlgorithm extends Algorithm implements TimeLimitedAlgorit
                     bestFitness = newFitness;
                     bestSolution.copyFrom(currentSolution);
                 }
+                stepsCount++;  // Count accepted swap as a step.
             } else {
-                currentSolution.swap(a, b);
+                currentSolution.swap(a, b); // Revert swap.
             }
         }
     }
@@ -69,8 +70,9 @@ public class RandomWalkAlgorithm extends Algorithm implements TimeLimitedAlgorit
                     bestFitness = newFitness;
                     bestSolution.copyFrom(currentSolution);
                 }
+                stepsCount++;  // Count accepted swap as a step.
             } else {
-                currentSolution.swap(a, b);
+                currentSolution.swap(a, b); // Revert swap.
             }
         }
     }

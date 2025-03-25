@@ -1,56 +1,35 @@
 package com.mycompany.qapsolver;
 
-public class MultiStartSteepestDescentAlgorithm extends Algorithm {
-    private final int maxIterations;
-    private final int randomStarts;
+import java.util.List;
 
-    public MultiStartSteepestDescentAlgorithm(Problem problem, int maxIterations, int randomStarts) {
-        super(problem);
-        this.maxIterations = maxIterations;
-        this.randomStarts = randomStarts;
+public class MultiStartSteepestDescentAlgorithm extends OperatorLocalSearchAlgorithm {
+
+    public MultiStartSteepestDescentAlgorithm(Problem problem, int maxIterations, int randomStarts, NeighborhoodOperator operator) {
+        super(problem, maxIterations, randomStarts, operator);
     }
 
     @Override
-    public void run() {
-        int bestOverallFitness = Integer.MAX_VALUE;
-        Solution bestOverallSolution = new Solution(problem.getSize());
-        int n = problem.getSize();
-
-        for (int start = 0; start < randomStarts; start++) {
-            RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
-            initializer.run();
-            currentSolution.copyFrom(initializer.getBestSolution());
-            int currentFitness = evaluate(currentSolution);
-
-            for (int iter = 0; iter < maxIterations; iter++) {
-                int bestNeighborFitness = currentFitness;
-                int bestI = -1, bestJ = -1;
-                for (int i = 0; i < n - 1; i++) {
-                    for (int j = i + 1; j < n; j++) {
-                        currentSolution.swap(i, j);
-                        int newFitness = evaluate(currentSolution);
-                        if (newFitness < bestNeighborFitness) {
-                            bestNeighborFitness = newFitness;
-                            bestI = i;
-                            bestJ = j;
-                        }
-                        currentSolution.swap(i, j);
-                    }
-                }
-                if (bestNeighborFitness < currentFitness) {
-                    currentSolution.swap(bestI, bestJ);
-                    currentFitness = bestNeighborFitness;
-                    stepsCount++; // Count this accepted move as a step.
-                } else {
-                    break;
+    protected int localSearch(int currentFitness, int n) {
+        for (int iter = 0; iter < maxIterations; iter++) {
+            int bestNeighborFitness = currentFitness;
+            Solution bestNeighbor = null;
+            // Enumerate all neighbors via the operator.
+            List<Solution> neighbors = operator.generateNeighbors(currentSolution);
+            for (Solution neighbor : neighbors) {
+                int newFitness = evaluate(neighbor);
+                if (newFitness < bestNeighborFitness) {
+                    bestNeighborFitness = newFitness;
+                    bestNeighbor = neighbor;
                 }
             }
-
-            if (currentFitness < bestOverallFitness) {
-                bestOverallFitness = currentFitness;
-                bestOverallSolution.copyFrom(currentSolution);
+            if (bestNeighbor != null && bestNeighborFitness < currentFitness) {
+                currentSolution.copyFrom(bestNeighbor);
+                currentFitness = bestNeighborFitness;
+                stepsCount++;
+            } else {
+                break; // No improving neighbor found.
             }
         }
-        bestSolution.copyFrom(bestOverallSolution);
+        return currentFitness;
     }
 }
