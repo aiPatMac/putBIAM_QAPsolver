@@ -9,21 +9,43 @@ public abstract class Algorithm {
     protected long evaluationsCount = 0;
     protected long stepsCount = 0;
 
+    // Fields to record the initial solution and its fitness.
+    protected Solution initialSolution;
+    protected int initialFitness;
+
     public Algorithm(Problem problem) {
         this.problem = problem;
         int size = problem.getSize();
         this.currentSolution = new Solution(size);
         this.bestSolution = new Solution(size);
-        // Initialize bestSolution with the starting solution.
+        // Initially, copy currentSolution into bestSolution.
         this.bestSolution.copyFrom(currentSolution);
     }
 
     /**
+     * Records the current state of currentSolution as the initial solution,
+     * along with its evaluated fitness.
+     */
+    protected void recordInitial() {
+        this.initialSolution = new Solution(problem.getSize());
+        this.initialSolution.copyFrom(currentSolution);
+        this.initialFitness = evaluate(currentSolution);
+    }
+
+    public Solution getInitialSolution() {
+        return initialSolution;
+    }
+
+    public int getInitialFitness() {
+        return initialFitness;
+    }
+
+    /**
      * Evaluates the fitness (cost) of a given solution.
-     * Each call to evaluate() is counted as one full evaluation.
+     * Each call to evaluate() increments evaluationsCount.
      */
     protected int evaluate(Solution sol) {
-        evaluationsCount++;  // Increment counter for each full evaluation.
+        evaluationsCount++;
         int[][] flow = problem.getFlowMatrix();
         int[][] distance = problem.getDistanceMatrix();
         int[] assignment = sol.getAssignment();

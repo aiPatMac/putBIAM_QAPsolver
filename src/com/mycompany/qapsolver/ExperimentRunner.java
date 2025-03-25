@@ -27,14 +27,15 @@ public class ExperimentRunner {
 
     public void runExperiments() throws IOException {
         File dir = new File(instancesDir);
-        File[] instanceFiles = dir.listFiles((d, name) -> name.endsWith(".dat"));
+        File[] instanceFiles = dir.listFiles((d, name) -> name.endsWith("chr12c.dat"));
         if (instanceFiles == null || instanceFiles.length == 0) {
             System.out.println("No instance files found in directory: " + instancesDir);
             return;
         }
 
         PrintWriter pw = new PrintWriter(new FileWriter("experiment_results.csv"));
-        pw.println("Instance,Algorithm,Run,Fitness,TimeMs,Evaluations,Steps");
+        // CSV header includes initial and final solution data.
+        pw.println("Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps");
 
         int successfulInstances = 0;
         for (File file : instanceFiles) {
@@ -52,19 +53,19 @@ public class ExperimentRunner {
                 break;
             }
 
-            // Estimate the time budget (in nanoseconds) using the same parameters as for G and S.
+            // Estimate time budget range using parameters for G and S.
             TimeBudgetRange timeRange = ExperimentRunnerHelper.estimateTimeBudgetRangeAll(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
-            System.out.println("Estimated time budget range (ns) for RS/RW: " + timeRange.minTime + " to " + timeRange.maxTime);
+            System.out.println("Estimated time budget range (ns) for RS/RW/H: " + timeRange.minTime + " to " + timeRange.maxTime);
 
             for (AlgorithmFactory factory : algorithmFactories) {
                 for (int run = 1; run <= runsPerInstance; run++) {
                     long startTime = TimeUtil.currentTime();
                     Algorithm algorithm = factory.create(problem);
 
-                    // If RS or RW, run dynamically with the estimated time budget.
+                    // For RS, RW, or H, run dynamically if applicable.
                     if (factory.getName().equals("RS") || factory.getName().equals("RW") || factory.getName().equals("H")) {
                         if (algorithm instanceof TimeLimitedAlgorithm) {
-                            long timeBudget = timeRange.randomBudget(); // New random budget per run.
+                            long timeBudget = timeRange.randomBudget();
                             ((TimeLimitedAlgorithm) algorithm).run(timeBudget);
                         } else {
                             algorithm.run();
@@ -73,13 +74,17 @@ public class ExperimentRunner {
                         algorithm.run();
                     }
 
-
                     long elapsedNs = TimeUtil.currentTime() - startTime;
                     double elapsedMs = elapsedNs / 1_000_000.0;
-                    int fitness = algorithm.getBestFitness();
+                    int finalFitness = algorithm.getBestFitness();
                     long evaluations = algorithm.getEvaluationsCount();
                     long steps = algorithm.getStepsCount();
-                    String line = instanceName + "," + factory.getName() + "," + run + "," + fitness + "," + elapsedMs + "," + evaluations + "," + steps;
+
+                    String initSolStr = algorithm.getInitialSolution() != null ? algorithm.getInitialSolution().toString() : "NA";
+                    String line = instanceName + "," + factory.getName() + "," + run + ","
+                            + algorithm.getInitialFitness() + "," + initSolStr + ","
+                            + finalFitness + "," + algorithm.getBestSolution().toString() + ","
+                            + elapsedMs + "," + evaluations + "," + steps;
                     System.out.println(line);
                     pw.println(line);
                 }
@@ -95,10 +100,9 @@ public class ExperimentRunner {
             System.exit(1);
         }
         String instancesDir = args[0];
-        // Use global parameters from Config.
         ExperimentRunner runner = new ExperimentRunner(instancesDir, Config.RUNS_PER_INSTANCE, Config.MAX_INSTANCES);
 
-        // Register algorithms using the global parameters.
+        // Register algorithms.
         runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "RS"; }
             public Algorithm create(Problem problem) {
@@ -117,25 +121,25 @@ public class ExperimentRunner {
                 return new NearestNeighborAlgorithm(problem);
             }
         });
-        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+        runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "G-2swap"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartGreedyAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
             }
         });
-        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+        runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "G-3opt"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartGreedyAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new ThreeOptOperator());
             }
         });
-        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+        runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "S-2swap"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
             }
         });
-        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+        runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "S-3opt"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new ThreeOptOperator());

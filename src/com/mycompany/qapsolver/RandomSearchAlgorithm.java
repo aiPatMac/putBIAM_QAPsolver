@@ -3,7 +3,7 @@ package com.mycompany.qapsolver;
 import java.util.Random;
 
 public class RandomSearchAlgorithm extends Algorithm implements TimeLimitedAlgorithm {
-    private final int fixedIterations; // fallback if time limit is not used
+    private final int fixedIterations;
     private final Random rand;
 
     public RandomSearchAlgorithm(Problem problem, int iterations) {
@@ -12,9 +12,11 @@ public class RandomSearchAlgorithm extends Algorithm implements TimeLimitedAlgor
         this.rand = new Random();
     }
 
-    // The original run() method for fixed iterations.
     @Override
     public void run() {
+        // Generate one random solution and record it as initial.
+        shuffleSolution(currentSolution);
+        recordInitial();  // Save the initial random solution.
         int bestFitness = evaluate(bestSolution);
         for (int i = 0; i < fixedIterations; i++) {
             shuffleSolution(currentSolution);
@@ -22,15 +24,17 @@ public class RandomSearchAlgorithm extends Algorithm implements TimeLimitedAlgor
             if (currentFitness < bestFitness) {
                 bestFitness = currentFitness;
                 bestSolution.copyFrom(currentSolution);
-                stepsCount++;  // Count each accepted improvement as a step.
+                stepsCount++; // Count accepted improvement.
             }
         }
     }
 
-    // New time-limited run method.
     @Override
     public void run(long timeLimitNs) {
         long start = TimeUtil.currentTime();
+        // Generate one random solution and record as initial.
+        shuffleSolution(currentSolution);
+        recordInitial();
         int bestFitness = evaluate(bestSolution);
         while (TimeUtil.currentTime() - start < timeLimitNs) {
             shuffleSolution(currentSolution);
@@ -38,12 +42,11 @@ public class RandomSearchAlgorithm extends Algorithm implements TimeLimitedAlgor
             if (currentFitness < bestFitness) {
                 bestFitness = currentFitness;
                 bestSolution.copyFrom(currentSolution);
-                stepsCount++;  // Count each accepted improvement as a step.
+                stepsCount++;
             }
         }
     }
 
-    // Fisher–Yates shuffle.
     private void shuffleSolution(Solution sol) {
         int[] arr = sol.getAssignment();
         int n = arr.length;
