@@ -35,7 +35,9 @@ public class ExperimentRunner {
 
         PrintWriter pw = new PrintWriter(new FileWriter("experiment_results.csv"));
         // CSV header includes initial and final solution data.
-        pw.println("Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps");
+        String csvHeader = "Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps";
+        pw.println(csvHeader);
+        System.out.println(csvHeader);
 
         int successfulInstances = 0;
         for (File file : instanceFiles) {
