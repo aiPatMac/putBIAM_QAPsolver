@@ -22,6 +22,7 @@ public class RandomSearchAlgorithm extends Algorithm implements TimeLimitedAlgor
             if (currentFitness < bestFitness) {
                 bestFitness = currentFitness;
                 bestSolution.copyFrom(currentSolution);
+                stepsCount++;  // Count each accepted improvement as a step.
             }
         }
     }
@@ -37,11 +38,12 @@ public class RandomSearchAlgorithm extends Algorithm implements TimeLimitedAlgor
             if (currentFitness < bestFitness) {
                 bestFitness = currentFitness;
                 bestSolution.copyFrom(currentSolution);
+                stepsCount++;  // Count each accepted improvement as a step.
             }
         }
     }
 
-    // Fisher–Yates shuffle
+    // Fisher–Yates shuffle.
     private void shuffleSolution(Solution sol) {
         int[] arr = sol.getAssignment();
         int n = arr.length;

@@ -1,56 +1,52 @@
 package com.mycompany.qapsolver;
 
-public class LocalSearchAlgorithm extends Algorithm {
-    private final int maxIterations;
+public abstract class LocalSearchAlgorithm extends Algorithm {
+    protected final int maxIterations;
+    protected final int randomStarts;
 
-    public LocalSearchAlgorithm(Problem problem, int maxIterations) {
+    public LocalSearchAlgorithm(Problem problem, int maxIterations, int randomStarts) {
         super(problem);
         this.maxIterations = maxIterations;
+        this.randomStarts = randomStarts;
     }
 
+    /**
+     * The run method implements the multi‑start framework.
+     * For each random start, it initializes a solution and improves it using localSearch().
+     * Finally, it keeps the best overall solution.
+     */
     @Override
     public void run() {
-        // Initialize currentSolution using a random permutation.
-        RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
-        initializer.run();
-        currentSolution.copyFrom(initializer.getBestSolution());
-        bestSolution.copyFrom(currentSolution);
+        int bestOverallFitness = Integer.MAX_VALUE;
+        Solution bestOverallSolution = new Solution(problem.getSize());
+        int n = problem.getSize();
 
-        int currentFitness = evaluate(currentSolution);
-        int bestFitness = currentFitness;
-        boolean improvementFound;
+        for (int start = 0; start < randomStarts; start++) {
+            // Initialize with a random solution.
+            RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
+            initializer.run();
+            currentSolution.copyFrom(initializer.getBestSolution());
+            int currentFitness = evaluate(currentSolution);
 
-        // Simple first-improvement local search (swap neighborhood)
-        for (int iter = 0; iter < maxIterations; iter++) {
-            improvementFound = false;
-            for (int i = 0; i < problem.getSize() - 1; i++) {
-                for (int j = i + 1; j < problem.getSize(); j++) {
-                    // Swap positions i and j in currentSolution.
-                    currentSolution.swap(i, j);
-                    int newFitness = evaluate(currentSolution);
+            // Improve the current solution using a specific local search method.
+            currentFitness = localSearch(currentFitness, n);
 
-                    if (newFitness < currentFitness) {
-                        currentFitness = newFitness;
-                        if (newFitness < bestFitness) {
-                            bestFitness = newFitness;
-                            bestSolution.copyFrom(currentSolution);
-                        }
-                        improvementFound = true;
-                        // Accept the first improvement and break out of inner loops.
-                        break;
-                    } else {
-                        // Revert the swap if no improvement.
-                        currentSolution.swap(i, j);
-                    }
-                }
-                if (improvementFound) {
-                    break;
-                }
-            }
-            // Terminate if no improving move is found.
-            if (!improvementFound) {
-                break;
+            // Update overall best solution if this run produced an improvement.
+            if (currentFitness < bestOverallFitness) {
+                bestOverallFitness = currentFitness;
+                bestOverallSolution.copyFrom(currentSolution);
             }
         }
+        bestSolution.copyFrom(bestOverallSolution);
     }
+
+    /**
+     * Abstract method for performing the local search improvement from a given starting solution.
+     * This method should update currentSolution in-place and return its final fitness.
+     *
+     * @param currentFitness the fitness of the starting solution.
+     * @param n              the problem size.
+     * @return the improved fitness after local search.
+     */
+    protected abstract int localSearch(int currentFitness, int n);
 }

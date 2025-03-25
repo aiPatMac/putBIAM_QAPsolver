@@ -53,7 +53,7 @@ public class ExperimentRunner {
             }
 
             // Estimate the time budget (in nanoseconds) using the same parameters as for G and S.
-            TimeBudgetRange timeRange = ExperimentRunnerHelper.estimateTimeBudgetRange(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
+            TimeBudgetRange timeRange = ExperimentRunnerHelper.estimateTimeBudgetRangeAll(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
             System.out.println("Estimated time budget range (ns) for RS/RW: " + timeRange.minTime + " to " + timeRange.maxTime);
 
             for (AlgorithmFactory factory : algorithmFactories) {
@@ -62,17 +62,17 @@ public class ExperimentRunner {
                     Algorithm algorithm = factory.create(problem);
 
                     // If RS or RW, run dynamically with the estimated time budget.
-                    if (factory.getName().equals("RS") || factory.getName().equals("RW")) {
+                    if (factory.getName().equals("RS") || factory.getName().equals("RW") || factory.getName().equals("H")) {
                         if (algorithm instanceof TimeLimitedAlgorithm) {
-                            long timeBudget = timeRange.randomBudget();
+                            long timeBudget = timeRange.randomBudget(); // New random budget per run.
                             ((TimeLimitedAlgorithm) algorithm).run(timeBudget);
                         } else {
                             algorithm.run();
                         }
                     } else {
-                        // Otherwise run normally.
                         algorithm.run();
                     }
+
 
                     long elapsedNs = TimeUtil.currentTime() - startTime;
                     double elapsedMs = elapsedNs / 1_000_000.0;
@@ -117,16 +117,28 @@ public class ExperimentRunner {
                 return new NearestNeighborAlgorithm(problem);
             }
         });
-        runner.registerAlgorithm(new AlgorithmFactory() {
-            public String getName() { return "G"; }
+        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+            public String getName() { return "G-2swap"; }
             public Algorithm create(Problem problem) {
-                return new MultiStartGreedyAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
+                return new MultiStartGreedyAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
             }
         });
-        runner.registerAlgorithm(new AlgorithmFactory() {
-            public String getName() { return "S"; }
+        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+            public String getName() { return "G-3opt"; }
             public Algorithm create(Problem problem) {
-                return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
+                return new MultiStartGreedyAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new ThreeOptOperator());
+            }
+        });
+        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+            public String getName() { return "S-2swap"; }
+            public Algorithm create(Problem problem) {
+                return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
+            }
+        });
+        runner.registerAlgorithm(new ExperimentRunner.AlgorithmFactory() {
+            public String getName() { return "S-3opt"; }
+            public Algorithm create(Problem problem) {
+                return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new ThreeOptOperator());
             }
         });
 
