@@ -25,14 +25,34 @@ public class ExperimentRunnerLSonly {
         algorithmFactories.add(factory);
     }
 
+    public static Set<String> getAllowedInstanceNames(String optimalCsvPath) throws IOException {
+        Set<String> allowed = new HashSet<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(optimalCsvPath))) {
+            String line;
+            br.readLine(); // skip header
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length > 0) {
+                    String name = parts[0].trim().toLowerCase();
+                    if (!name.isEmpty()) {
+                        allowed.add(name + ".dat");  // make sure to include ".dat"
+                    }
+                }
+            }
+        }
+        return allowed;
+    }
+
     public void runExperiments() throws IOException {
         File dir = new File(instancesDir);
-        File[] instanceFiles = dir.listFiles((d, name) -> name.startsWith("bur") && name.endsWith(".dat"));
-        if (instanceFiles == null || instanceFiles.length == 0) {
+        Set<String> allowedFiles = getAllowedInstanceNames("optimal_data.csv");
+
+        File[] instanceFiles = dir.listFiles((d, name) ->
+                allowedFiles.contains(name.toLowerCase())
+        );        if (instanceFiles == null || instanceFiles.length == 0) {
             System.out.println("No instance files found in directory: " + instancesDir);
             return;
         }
-
         PrintWriter pw = new PrintWriter(new FileWriter("experiment_results_ls.csv"));
         String csvHeader = "Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps";
         pw.println(csvHeader);

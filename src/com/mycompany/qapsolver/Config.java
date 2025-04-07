@@ -3,7 +3,7 @@ package com.mycompany.qapsolver;
 public class Config {
     // Experiment configuration
     public static final int RUNS_PER_INSTANCE = 20;    // number of runs per instance
-    public static final int MAX_INSTANCES = 10;          // maximum number of working instances to process
+    public static final int MAX_INSTANCES = 13;          // maximum number of working instances to process
 
     // Random Search (RS) parameters (iterations are used as fallback if time-limit not applied)
     public static final int RS_ITERATIONS = 10;
