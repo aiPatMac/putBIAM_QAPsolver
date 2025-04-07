@@ -26,8 +26,12 @@ public class ExperimentRunner {
     }
 
     public void runExperiments() throws IOException {
+
+        Map<String, Map<Integer, Long>> localSearchTimes = new HashMap<>();
+        List<String> localSearchAlgos = Arrays.asList("G-2swap", "S-2swap");
+
         File dir = new File(instancesDir);
-        File[] instanceFiles = dir.listFiles((d, name) -> name.endsWith("chr12c.dat"));
+        File[] instanceFiles = dir.listFiles((d, name) -> name.startsWith("bur") && name.endsWith(".dat"));
         if (instanceFiles == null || instanceFiles.length == 0) {
             System.out.println("No instance files found in directory: " + instancesDir);
             return;
@@ -67,7 +71,9 @@ public class ExperimentRunner {
                     // For RS, RW, or H, run dynamically if applicable.
                     if (factory.getName().equals("RS") || factory.getName().equals("RW") || factory.getName().equals("H")) {
                         if (algorithm instanceof TimeLimitedAlgorithm) {
+//                            long timeBudget = timeRange.randomBudget();
                             long timeBudget = timeRange.randomBudget();
+
                             ((TimeLimitedAlgorithm) algorithm).run(timeBudget);
                         } else {
                             algorithm.run();
@@ -84,8 +90,8 @@ public class ExperimentRunner {
 
                     String initSolStr = algorithm.getInitialSolution() != null ? algorithm.getInitialSolution().toString() : "NA";
                     String line = instanceName + "," + factory.getName() + "," + run + ","
-                            + algorithm.getInitialFitness() + "," + initSolStr + ","
-                            + finalFitness + "," + algorithm.getBestSolution().toString() + ","
+                            + algorithm.getInitialFitness() + ",\"" + initSolStr + "\","
+                            + finalFitness + ",\"" + algorithm.getBestSolution().toString() + "\","
                             + elapsedMs + "," + evaluations + "," + steps;
                     System.out.println(line);
                     pw.println(line);
@@ -130,21 +136,9 @@ public class ExperimentRunner {
             }
         });
         runner.registerAlgorithm(new AlgorithmFactory() {
-            public String getName() { return "G-3opt"; }
-            public Algorithm create(Problem problem) {
-                return new MultiStartGreedyAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new ThreeOptOperator());
-            }
-        });
-        runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "S-2swap"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
-            }
-        });
-        runner.registerAlgorithm(new AlgorithmFactory() {
-            public String getName() { return "S-3opt"; }
-            public Algorithm create(Problem problem) {
-                return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new ThreeOptOperator());
             }
         });
 

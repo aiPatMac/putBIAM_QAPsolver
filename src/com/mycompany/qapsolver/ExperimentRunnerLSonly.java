@@ -3,7 +3,7 @@ package com.mycompany.qapsolver;
 import java.io.*;
 import java.util.*;
 
-public class ExperimentRunner3 {
+public class ExperimentRunnerLSonly {
     public interface AlgorithmFactory {
         String getName();
         Algorithm create(Problem problem);
@@ -11,13 +11,13 @@ public class ExperimentRunner3 {
 
     private final List<AlgorithmFactory> algorithmFactories;
     private final String instancesDir;
+    private final int runsPerInstance;
     private final int maxInstances;
-    private final int maxRestarts; // e.g., 300 restarts
 
-    public ExperimentRunner3(String instancesDir, int maxInstances, int maxRestarts) {
+    public ExperimentRunnerLSonly(String instancesDir, int runsPerInstance, int maxInstances) {
         this.instancesDir = instancesDir;
+        this.runsPerInstance = runsPerInstance;
         this.maxInstances = maxInstances;
-        this.maxRestarts = maxRestarts;
         this.algorithmFactories = new ArrayList<>();
     }
 
@@ -27,18 +27,16 @@ public class ExperimentRunner3 {
 
     public void runExperiments() throws IOException {
         File dir = new File(instancesDir);
-        // For experiment 3, select a few interesting instances (e.g., those containing "chr12c")
-        File[] instanceFiles = dir.listFiles((d, name) -> name.contains("chr12c"));
+        File[] instanceFiles = dir.listFiles((d, name) -> name.startsWith("bur") && name.endsWith(".dat"));
         if (instanceFiles == null || instanceFiles.length == 0) {
-            System.out.println("No selected instance files found in directory: " + instancesDir);
+            System.out.println("No instance files found in directory: " + instancesDir);
             return;
         }
 
-        PrintWriter pw = new PrintWriter(new FileWriter("experiment3_results.csv"));
-        // CSV header: Instance,Algorithm,Restart,BestSoFar,AverageSoFar
-        String header = "Instance,Algorithm,Restart,BestSoFar,AverageSoFar";
-        pw.println(header);
-        System.out.println(header);
+        PrintWriter pw = new PrintWriter(new FileWriter("experiment_results_ls.csv"));
+        String csvHeader = "Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps";
+        pw.println(csvHeader);
+        System.out.println(csvHeader);
 
         int successfulInstances = 0;
         for (File file : instanceFiles) {
@@ -51,41 +49,46 @@ public class ExperimentRunner3 {
                 System.err.println("Skipping instance " + instanceName + " due to error: " + e.getMessage());
                 continue;
             }
+
             successfulInstances++;
-            if (successfulInstances > maxInstances)
+            if (successfulInstances > maxInstances) {
                 break;
+            }
 
             for (AlgorithmFactory factory : algorithmFactories) {
-                double cumulativeQuality = 0.0;
-                int bestSoFar = Integer.MAX_VALUE;
-                for (int restart = 1; restart <= maxRestarts; restart++) {
-                    // Create a new algorithm instance for each restart.
+                for (int run = 1; run <= runsPerInstance; run++) {
+                    long startTime = TimeUtil.currentTime();
                     Algorithm algorithm = factory.create(problem);
                     algorithm.run();
+                    long elapsedNs = TimeUtil.currentTime() - startTime;
+                    double elapsedMs = elapsedNs / 1_000_000.0;
                     int finalFitness = algorithm.getBestFitness();
-                    cumulativeQuality += finalFitness;
-                    if (finalFitness < bestSoFar) {
-                        bestSoFar = finalFitness;
-                    }
-                    double averageSoFar = cumulativeQuality / restart;
-                    String line = instanceName + "," + factory.getName() + "," + restart + "," + bestSoFar + "," + averageSoFar;
+                    long evaluations = algorithm.getEvaluationsCount();
+                    long steps = algorithm.getStepsCount();
+
+                    String initSolStr = algorithm.getInitialSolution() != null ? algorithm.getInitialSolution().toString() : "NA";
+                    String line = instanceName + "," + factory.getName() + "," + run + ","
+                            + algorithm.getInitialFitness() + ",\"" + initSolStr + "\"," + finalFitness
+                            + ",\"" + algorithm.getBestSolution().toString() + "\"," + elapsedMs
+                            + "," + evaluations + "," + steps;
                     System.out.println(line);
                     pw.println(line);
                 }
             }
         }
         pw.close();
-        System.out.println("Experiment 3 results saved to experiment3_results.csv");
+        System.out.println("Experiment results saved to experiment_results_ls.csv");
     }
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            System.out.println("Usage: java com.mycompany.qapsolver.ExperimentRunner3 <instancesDir>");
+            System.out.println("Usage: java com.mycompany.qapsolver.ExperimentRunnerLSonly <instancesDir>");
             System.exit(1);
         }
         String instancesDir = args[0];
-        ExperimentRunner3 runner = new ExperimentRunner3(instancesDir, 2, 300);
-        // Register G and S algorithms (choose one operator variant, e.g., 2-swap).
+        ExperimentRunnerLSonly runner = new ExperimentRunnerLSonly(instancesDir, 200, Config.MAX_INSTANCES);
+
+        // Register only local search algorithms
         runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "G-2swap"; }
             public Algorithm create(Problem problem) {
@@ -98,6 +101,7 @@ public class ExperimentRunner3 {
                 return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
             }
         });
+
         try {
             runner.runExperiments();
         } catch (IOException e) {

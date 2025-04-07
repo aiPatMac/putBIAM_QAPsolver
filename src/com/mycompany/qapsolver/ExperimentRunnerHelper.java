@@ -19,7 +19,7 @@ public class ExperimentRunnerHelper {
         long globalMax = Long.MIN_VALUE;
 
         // Array of neighborhood operators to test.
-        NeighborhoodOperator[] operators = { new TwoSwapOperator(), new ThreeOptOperator() };
+        NeighborhoodOperator[] operators = { new TwoSwapOperator() };
 
         // For each operator variant, run both MultiStartGreedyAlgorithm and MultiStartSteepestDescentAlgorithm.
         for (NeighborhoodOperator op : operators) {
