@@ -35,7 +35,7 @@ public class ExperimentRunnerLSonly {
                 if (parts.length > 0) {
                     String name = parts[0].trim().toLowerCase();
                     if (!name.isEmpty()) {
-                        allowed.add(name + ".dat");  // make sure to include ".dat"
+                        allowed.add(name + ".dat");
                     }
                 }
             }
@@ -49,10 +49,12 @@ public class ExperimentRunnerLSonly {
 
         File[] instanceFiles = dir.listFiles((d, name) ->
                 allowedFiles.contains(name.toLowerCase())
-        );        if (instanceFiles == null || instanceFiles.length == 0) {
+        );
+        if (instanceFiles == null || instanceFiles.length == 0) {
             System.out.println("No instance files found in directory: " + instancesDir);
             return;
         }
+
         PrintWriter pw = new PrintWriter(new FileWriter("experiment_results_ls.csv"));
         String csvHeader = "Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps";
         pw.println(csvHeader);
@@ -71,15 +73,25 @@ public class ExperimentRunnerLSonly {
             }
 
             successfulInstances++;
-            if (successfulInstances > maxInstances) {
-                break;
-            }
+            if (successfulInstances > maxInstances) break;
+
+            // Estimate once for this instance
+            TimeBudgetRange timeRange = ExperimentRunnerHelper.estimateTimeBudgetRangeAll(
+                    problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
+            long baseTime = timeRange.maxTime;
 
             for (AlgorithmFactory factory : algorithmFactories) {
                 for (int run = 1; run <= runsPerInstance; run++) {
                     long startTime = TimeUtil.currentTime();
                     Algorithm algorithm = factory.create(problem);
-                    algorithm.run();
+
+                    String name = factory.getName();
+                    if ((name.equals("SA") || name.equals("TS")) && algorithm instanceof TimeLimitedAlgorithm) {
+                        ((TimeLimitedAlgorithm) algorithm).run(2 * baseTime);
+                    } else {
+                        algorithm.run();
+                    }
+
                     long elapsedNs = TimeUtil.currentTime() - startTime;
                     double elapsedMs = elapsedNs / 1_000_000.0;
                     int finalFitness = algorithm.getBestFitness();
@@ -87,15 +99,16 @@ public class ExperimentRunnerLSonly {
                     long steps = algorithm.getStepsCount();
 
                     String initSolStr = algorithm.getInitialSolution() != null ? algorithm.getInitialSolution().toString() : "NA";
-                    String line = instanceName + "," + factory.getName() + "," + run + ","
-                            + algorithm.getInitialFitness() + ",\"" + initSolStr + "\"," + finalFitness
-                            + ",\"" + algorithm.getBestSolution().toString() + "\"," + elapsedMs
-                            + "," + evaluations + "," + steps;
+                    String line = instanceName + "," + name + "," + run + "," +
+                            algorithm.getInitialFitness() + ",\"" + initSolStr + "\"," +
+                            finalFitness + ",\"" + algorithm.getBestSolution().toString() + "\"," +
+                            elapsedMs + "," + evaluations + "," + steps;
                     System.out.println(line);
                     pw.println(line);
                 }
             }
         }
+
         pw.close();
         System.out.println("Experiment results saved to experiment_results_ls.csv");
     }
@@ -105,10 +118,11 @@ public class ExperimentRunnerLSonly {
             System.out.println("Usage: java com.mycompany.qapsolver.ExperimentRunnerLSonly <instancesDir>");
             System.exit(1);
         }
+
         String instancesDir = args[0];
         ExperimentRunnerLSonly runner = new ExperimentRunnerLSonly(instancesDir, 200, Config.MAX_INSTANCES);
 
-        // Register only local search algorithms
+        // Register Local Search + SA and TS
         runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "G-2swap"; }
             public Algorithm create(Problem problem) {
@@ -119,6 +133,18 @@ public class ExperimentRunnerLSonly {
             public String getName() { return "S-2swap"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
+            }
+        });
+        runner.registerAlgorithm(new AlgorithmFactory() {
+            public String getName() { return "SA"; }
+            public Algorithm create(Problem problem) {
+                return new SimulatedAnnealingAlgorithm(problem);
+            }
+        });
+        runner.registerAlgorithm(new AlgorithmFactory() {
+            public String getName() { return "TS"; }
+            public Algorithm create(Problem problem) {
+                return new TabuSearchAlgorithm(problem);
             }
         });
 

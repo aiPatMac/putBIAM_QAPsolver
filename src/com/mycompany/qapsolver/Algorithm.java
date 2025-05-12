@@ -1,6 +1,10 @@
 package com.mycompany.qapsolver;
 
 public abstract class Algorithm {
+    /**
+     * The problem instance to be solved.
+     * This is a QAP instance with flow and distance matrices.
+     */
     protected final Problem problem;
     protected final Solution currentSolution;
     protected final Solution bestSolution;

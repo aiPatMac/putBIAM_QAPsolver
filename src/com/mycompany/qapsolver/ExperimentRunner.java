@@ -35,7 +35,7 @@ public class ExperimentRunner {
                 if (parts.length > 0) {
                     String name = parts[0].trim().toLowerCase();
                     if (!name.isEmpty()) {
-                        allowed.add(name + ".dat");  // make sure to include ".dat"
+                        allowed.add(name + ".dat");
                     }
                 }
             }
@@ -44,19 +44,19 @@ public class ExperimentRunner {
     }
 
     public void runExperiments() throws IOException {
-
         File dir = new File(instancesDir);
         Set<String> allowedFiles = getAllowedInstanceNames("optimal_data.csv");
 
         File[] instanceFiles = dir.listFiles((d, name) ->
                 allowedFiles.contains(name.toLowerCase())
-        );        if (instanceFiles == null || instanceFiles.length == 0) {
+        );
+
+        if (instanceFiles == null || instanceFiles.length == 0) {
             System.out.println("No instance files found in directory: " + instancesDir);
             return;
         }
 
         PrintWriter pw = new PrintWriter(new FileWriter("experiment_results.csv"));
-        // CSV header includes initial and final solution data.
         String csvHeader = "Instance,Algorithm,Run,InitialFitness,InitialSolution,FinalFitness,FinalSolution,TimeMs,Evaluations,Steps";
         pw.println(csvHeader);
         System.out.println(csvHeader);
@@ -72,26 +72,27 @@ public class ExperimentRunner {
                 System.err.println("Skipping instance " + instanceName + " due to error: " + e.getMessage());
                 continue;
             }
-            successfulInstances++;
-            if (successfulInstances > maxInstances) {
-                break;
-            }
 
-            // Estimate time budget range using parameters for G and S.
-            TimeBudgetRange timeRange = ExperimentRunnerHelper.estimateTimeBudgetRangeAll(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
-            System.out.println("Estimated time budget range (ns) for RS/RW/H: " + timeRange.minTime + " to " + timeRange.maxTime);
+            successfulInstances++;
+            if (successfulInstances > maxInstances) break;
+
+            // Estimate time budget ONCE per instance
+            TimeBudgetRange timeRange = ExperimentRunnerHelper.estimateTimeBudgetRangeAll(
+                    problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS);
+            long baseTime = timeRange.maxTime;
 
             for (AlgorithmFactory factory : algorithmFactories) {
                 for (int run = 1; run <= runsPerInstance; run++) {
                     long startTime = TimeUtil.currentTime();
                     Algorithm algorithm = factory.create(problem);
 
-                    // For RS, RW, or H, run dynamically if applicable.
-                    if (factory.getName().equals("RS") || factory.getName().equals("RW") || factory.getName().equals("H")) {
-                        if (algorithm instanceof TimeLimitedAlgorithm) {
-//                            long timeBudget = timeRange.randomBudget();
-                            long timeBudget = timeRange.randomBudget();
+                    String name = factory.getName();
 
+                    if ((name.equals("SA") || name.equals("TS")) && algorithm instanceof TimeLimitedAlgorithm) {
+                        ((TimeLimitedAlgorithm) algorithm).run(2 * baseTime);
+                    } else if (name.equals("RS") || name.equals("RW") || name.equals("H")) {
+                        if (algorithm instanceof TimeLimitedAlgorithm) {
+                            long timeBudget = timeRange.randomBudget();
                             ((TimeLimitedAlgorithm) algorithm).run(timeBudget);
                         } else {
                             algorithm.run();
@@ -107,15 +108,16 @@ public class ExperimentRunner {
                     long steps = algorithm.getStepsCount();
 
                     String initSolStr = algorithm.getInitialSolution() != null ? algorithm.getInitialSolution().toString() : "NA";
-                    String line = instanceName + "," + factory.getName() + "," + run + ","
-                            + algorithm.getInitialFitness() + ",\"" + initSolStr + "\","
-                            + finalFitness + ",\"" + algorithm.getBestSolution().toString() + "\","
-                            + elapsedMs + "," + evaluations + "," + steps;
+                    String line = instanceName + "," + name + "," + run + "," +
+                            algorithm.getInitialFitness() + ",\"" + initSolStr + "\"," +
+                            finalFitness + ",\"" + algorithm.getBestSolution().toString() + "\"," +
+                            elapsedMs + "," + evaluations + "," + steps;
                     System.out.println(line);
                     pw.println(line);
                 }
             }
         }
+
         pw.close();
         System.out.println("Experiment results saved to experiment_results.csv");
     }
@@ -125,10 +127,11 @@ public class ExperimentRunner {
             System.out.println("Usage: java com.mycompany.qapsolver.ExperimentRunner <instancesDir>");
             System.exit(1);
         }
+
         String instancesDir = args[0];
         ExperimentRunner runner = new ExperimentRunner(instancesDir, Config.RUNS_PER_INSTANCE, Config.MAX_INSTANCES);
 
-        // Register algorithms.
+        // Register algorithms
         runner.registerAlgorithm(new AlgorithmFactory() {
             public String getName() { return "RS"; }
             public Algorithm create(Problem problem) {
@@ -157,6 +160,18 @@ public class ExperimentRunner {
             public String getName() { return "S-2swap"; }
             public Algorithm create(Problem problem) {
                 return new MultiStartSteepestDescentAlgorithm(problem, Config.GS_MAX_ITERATIONS, Config.GS_RANDOM_STARTS, new TwoSwapOperator());
+            }
+        });
+        runner.registerAlgorithm(new AlgorithmFactory() {
+            public String getName() { return "SA"; }
+            public Algorithm create(Problem problem) {
+                return new SimulatedAnnealingAlgorithm(problem);
+            }
+        });
+        runner.registerAlgorithm(new AlgorithmFactory() {
+            public String getName() { return "TS"; }
+            public Algorithm create(Problem problem) {
+                return new TabuSearchAlgorithm(problem);
             }
         });
 
