@@ -8,38 +8,48 @@ public class MultiStartGreedyAlgorithm extends LocalSearchAlgorithm {
     }
 
     private final NeighborhoodOperator operator;
-
     @Override
     public void run() {
         int bestOverallFitness = Integer.MAX_VALUE;
         Solution bestOverallSolution = new Solution(problem.getSize());
         int n = problem.getSize();
+
         for (int start = 0; start < randomStarts; start++) {
             // Initialize with a random solution.
             RandomSearchAlgorithm initializer = new RandomSearchAlgorithm(problem, 1);
             initializer.run();
             currentSolution.copyFrom(initializer.getBestSolution());
-            // Record initial solution for this start.
+
             recordInitial();
             int currentFitness = evaluate(currentSolution);
-            // Greedy first-improvement using the operator.
-            for (int iter = 0; iter < maxIterations; iter++) {
-                Solution neighbor = operator.getRandomNeighbor(currentSolution);
-                int newFitness = evaluate(neighbor);
-                if (newFitness < currentFitness) {
-                    currentFitness = newFitness;
-                    currentSolution.copyFrom(neighbor);
-                    stepsCount++;
-                    break; // Accept first improvement.
+
+            boolean improvement = true;
+            while (improvement && stepsCount < maxIterations) {
+                improvement = false;
+                for (int i = 0; i < n * (n - 1) / 2; i++) { // Try multiple neighbors
+                    Solution neighbor = operator.getRandomNeighbor(currentSolution);
+                    int newFitness = evaluate(neighbor);
+                    evaluationsCount++;
+
+                    if (newFitness < currentFitness) {
+                        currentFitness = newFitness;
+                        currentSolution.copyFrom(neighbor);
+                        stepsCount++;
+                        improvement = true;
+                        break; // First improvement
+                    }
                 }
             }
+
             if (currentFitness < bestOverallFitness) {
                 bestOverallFitness = currentFitness;
                 bestOverallSolution.copyFrom(currentSolution);
             }
         }
+
         bestSolution.copyFrom(bestOverallSolution);
     }
+
 
     @Override
     protected int localSearch(int currentFitness, int n) {
